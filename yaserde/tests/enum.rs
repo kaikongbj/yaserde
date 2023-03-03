@@ -164,17 +164,11 @@ fn attribute_enum2() {
     }
   }
 
-  #[derive(Debug, PartialEq, YaSerialize, YaDeserialize)]
+  #[derive(Debug, Default, PartialEq, YaSerialize, YaDeserialize)]
   #[yaserde(rename = "child2")]
   struct Child2 {
     #[yaserde(attribute)]
     pub num: u8,
-  }
-
-  impl Default for Child2 {
-    fn default() -> Child2 {
-      Child2 { num: 0 }
-    }
   }
 
   #[derive(Debug, PartialEq, YaSerialize, YaDeserialize)]

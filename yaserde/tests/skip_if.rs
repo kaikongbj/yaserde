@@ -180,17 +180,19 @@ fn skip_serializing_if_for_enum() {
 fn skip_serializing_if_for_vec() {
   init();
 
-  #[derive(YaSerialize, PartialEq, Debug)]
+  #[derive(Debug, YaSerialize, PartialEq)]
   #[yaserde(rename = "base")]
   pub struct XmlStruct {
     #[yaserde(skip_serializing_if = "check_vec")]
     skipped_serializing: Vec<i8>,
   }
+
   impl XmlStruct {
-    fn check_vec(&self, _child: &Vec<i8>) -> bool {
+    fn check_vec(&self, _child: &[i8]) -> bool {
       true
     }
   }
+
   let model = XmlStruct {
     skipped_serializing: vec![1, 2, 3],
   };

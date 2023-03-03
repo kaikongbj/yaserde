@@ -17,7 +17,7 @@ pub fn serialize(
   let get_id = |field: &YaSerdeField| {
     field
       .label()
-      .unwrap_or(field.get_type().get_simple_type_visitor())
+      .unwrap_or_else(|| field.get_type().get_simple_type_visitor())
   };
 
   let variant_matches: TokenStream = data_enum

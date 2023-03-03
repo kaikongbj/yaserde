@@ -133,7 +133,7 @@ fn ser_list_of_items() {
 
 #[test]
 fn ser_attributes() {
-  #[derive(YaSerialize, PartialEq, Debug)]
+  #[derive(Debug, PartialEq, YaSerialize)]
   #[yaserde(rename = "base")]
   pub struct XmlStruct {
     #[yaserde(attribute)]
@@ -141,19 +141,11 @@ fn ser_attributes() {
     sub: SubStruct,
   }
 
-  #[derive(YaSerialize, PartialEq, Debug)]
+  #[derive(Debug, Default, PartialEq, YaSerialize)]
   #[yaserde(rename = "sub")]
   pub struct SubStruct {
     #[yaserde(attribute)]
     subitem: String,
-  }
-
-  impl Default for SubStruct {
-    fn default() -> SubStruct {
-      SubStruct {
-        subitem: "".to_string(),
-      }
-    }
   }
 
   assert_eq!(
@@ -177,36 +169,22 @@ fn ser_attributes() {
 #[test]
 fn ser_attributes_complex() {
   mod other_mod {
-    #[derive(YaSerialize, PartialEq, Debug)]
+    #[derive(Debug, Default, PartialEq, YaSerialize)]
     pub enum AttrEnum {
       #[yaserde(rename = "variant 1")]
+      #[default]
       Variant1,
       #[yaserde(rename = "variant 2")]
       Variant2,
     }
-
-    impl Default for AttrEnum {
-      fn default() -> AttrEnum {
-        AttrEnum::Variant1
-      }
-    }
   }
 
-  #[derive(YaSerialize, PartialEq, Debug)]
+  #[derive(Debug, Default, PartialEq, YaSerialize)]
   pub struct Struct {
     #[yaserde(attribute)]
     attr_option_string: Option<String>,
     #[yaserde(attribute)]
     attr_option_enum: Option<other_mod::AttrEnum>,
-  }
-
-  impl Default for Struct {
-    fn default() -> Struct {
-      Struct {
-        attr_option_string: None,
-        attr_option_enum: None,
-      }
-    }
   }
 
   serialize_and_validate!(
