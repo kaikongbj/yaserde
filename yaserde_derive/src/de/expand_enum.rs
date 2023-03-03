@@ -191,7 +191,7 @@ fn build_unnamed_field_visitors(fields: &syn::FieldsUnnamed) -> TokenStream {
       };
 
       match field.get_type() {
-        Field::FieldStruct { struct_name } => {
+        Field::Struct { struct_name } => {
           let struct_id: String = struct_name
             .segments
             .iter()
@@ -209,8 +209,8 @@ fn build_unnamed_field_visitors(fields: &syn::FieldsUnnamed) -> TokenStream {
             },
           ))
         }
-        Field::FieldOption { data_type } | Field::FieldVec { data_type } => match *data_type {
-          Field::FieldStruct { .. } => None,
+        Field::Option { data_type } | Field::Vec { data_type } => match *data_type {
+          Field::Struct { .. } => None,
           simple_type => Some(simple_type_visitor(simple_type)),
         },
         simple_type => Some(simple_type_visitor(simple_type)),
@@ -299,13 +299,13 @@ fn build_unnamed_visitor_calls(
       };
 
       match field.get_type() {
-        Field::FieldStruct { struct_name } => call_struct_visitor(struct_name, set_val),
-        Field::FieldOption { data_type } => match *data_type {
-          Field::FieldStruct { struct_name } => call_struct_visitor(struct_name, set_opt),
+        Field::Struct { struct_name } => call_struct_visitor(struct_name, set_val),
+        Field::Option { data_type } => match *data_type {
+          Field::Struct { struct_name } => call_struct_visitor(struct_name, set_opt),
           simple_type => call_simple_type_visitor(simple_type, set_opt),
         },
-        Field::FieldVec { data_type } => match *data_type {
-          Field::FieldStruct { struct_name } => call_struct_visitor(struct_name, set_vec),
+        Field::Vec { data_type } => match *data_type {
+          Field::Struct { struct_name } => call_struct_visitor(struct_name, set_vec),
           simple_type => call_simple_type_visitor(simple_type, set_vec),
         },
 

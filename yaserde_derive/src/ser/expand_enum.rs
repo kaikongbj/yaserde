@@ -36,7 +36,7 @@ pub fn serialize(
         .into_iter()
         .filter(|field| {
           field.is_attribute()
-            || (field.is_flatten() && matches!(field.get_type(), Field::FieldStruct { .. }))
+            || (field.is_flatten() && matches!(field.get_type(), Field::Struct { .. }))
         })
         .collect();
 
@@ -57,7 +57,7 @@ pub fn serialize(
             quote! { #name::#label { .. } => { }, }
           } else {
             match field.get_type() {
-              Field::FieldStruct { .. } => {
+              Field::Struct { .. } => {
                 if root_attributes.flatten {
                   quote! {
                     match self {
@@ -135,18 +135,18 @@ fn inner_enum_inspector(
               let field_label_name = field.renamed_label(root_attributes);
 
               match field.get_type() {
-                Field::FieldString
-                | Field::FieldBool
-                | Field::FieldU8
-                | Field::FieldI8
-                | Field::FieldU16
-                | Field::FieldI16
-                | Field::FieldU32
-                | Field::FieldI32
-                | Field::FieldF32
-                | Field::FieldU64
-                | Field::FieldI64
-                | Field::FieldF64 => Some({
+                Field::String
+                | Field::Bool
+                | Field::U8
+                | Field::I8
+                | Field::U16
+                | Field::I16
+                | Field::U32
+                | Field::I32
+                | Field::F32
+                | Field::U64
+                | Field::I64
+                | Field::F64 => Some({
                   quote! {
                     match self {
                       &#name::#label { ref #field_label, .. } => {
@@ -165,7 +165,7 @@ fn inner_enum_inspector(
                     }
                   }
                 }),
-                Field::FieldStruct { .. } => Some(quote! {
+                Field::Struct { .. } => Some(quote! {
                   match self {
                     &#name::#label{ref #field_label, ..} => {
                       writer.set_start_event_name(
@@ -177,7 +177,7 @@ fn inner_enum_inspector(
                     _ => {}
                   }
                 }),
-                Field::FieldVec { .. } => Some(quote! {
+                Field::Vec { .. } => Some(quote! {
                   match self {
                     &#name::#label { ref #field_label, .. } => {
                       for item in #field_label {
@@ -191,7 +191,7 @@ fn inner_enum_inspector(
                     _ => {}
                   }
                 }),
-                Field::FieldOption { .. } => None,
+                Field::Option { .. } => None,
               }
             })
             .collect();
@@ -240,7 +240,7 @@ fn inner_enum_inspector(
 
               let write_sub_type = |data_type| {
                 write_element(match data_type {
-                  Field::FieldString => &write_string_chars,
+                  Field::String => &write_string_chars,
                   _ => &serialize,
                 })
               };
@@ -257,7 +257,7 @@ fn inner_enum_inspector(
               };
 
               match field.get_type() {
-                Field::FieldOption { data_type } => {
+                Field::Option { data_type } => {
                   let write = write_sub_type(*data_type);
 
                   match_field(&quote! {
@@ -266,7 +266,7 @@ fn inner_enum_inspector(
                     }
                   })
                 }
-                Field::FieldVec { data_type } => {
+                Field::Vec { data_type } => {
                   let write = write_sub_type(*data_type);
 
                   match_field(&quote! {
@@ -275,14 +275,14 @@ fn inner_enum_inspector(
                     }
                   })
                 }
-                Field::FieldStruct { .. } => {
+                Field::Struct { .. } => {
                   if variant_attrs.flatten || field.is_flatten() {
                      match_field(&quote!{ ::yaserde::YaSerialize::serialize(item, writer)?})
                    } else {
                      write_element(&match_field(&serialize))
                    }
                 }
-                Field::FieldString => match_field(&write_element(&write_string_chars)),
+                Field::String => match_field(&write_element(&write_string_chars)),
                 _simple_type => match_field(&write_simple_type),
               }
             })
