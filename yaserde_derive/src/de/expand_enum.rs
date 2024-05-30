@@ -252,7 +252,7 @@ fn build_unnamed_visitor_calls(
           match <#struct_name as ::yaserde::YaDeserialize>::deserialize(reader) {
             Ok(value) => {
               #action;
-              let _root = reader.next_event();
+              // let _root = reader.next_event();
             },
             Err(msg) => {
               return Err(msg);
