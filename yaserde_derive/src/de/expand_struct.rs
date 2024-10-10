@@ -7,6 +7,7 @@ use syn::{DataStruct, Generics, Ident};
 pub fn parse(
   data_struct: &DataStruct,
   name: &Ident,
+  root_namespace: &str,
   root: &str,
   root_attributes: &YaSerdeAttribute,
   generics: &Generics,
@@ -148,9 +149,11 @@ pub fn parse(
       let value_label = field.get_value_label();
       let label_name = field.renamed_label_without_namespace();
 
+      let namespace = field.prefix_namespace(root_attributes);
+
       let visit_struct = |struct_name: syn::Path, action: TokenStream| {
         Some(quote! {
-          #label_name => {
+          (#namespace, #label_name) => {
             if depth == 0 {
               // Don't count current struct's StartElement as substruct's StartElement
               let _root = reader.next_event();
@@ -417,13 +420,15 @@ pub fn parse(
           );
           match event {
             ::yaserde::__xml::reader::XmlEvent::StartElement{ref name, ref attributes, ..} => {
-              if depth == 0 && name.local_name == #root {
+              let namespace = name.namespace.clone().unwrap_or_default();
+              if depth == 0 && name.local_name == #root && namespace.as_str() == #root_namespace {
                 // Consume root element. We must do this first. In the case it shares a name with a child element, we don't
                 // want to prematurely match the child element below.
                 let event = reader.next_event()?;
                 #write_unused
               } else {
-                match name.local_name.as_str() {
+
+                match (namespace.as_str(), name.local_name.as_str()) {
                   #call_visitors
                   _ => {
                     let event = reader.next_event()?;
@@ -493,8 +498,10 @@ fn build_call_visitor(
     quote!(name.local_name.as_str()),
   );
 
+  let namespace = field.prefix_namespace(root_attributes);
+
   Some(quote! {
-    #label_name => {
+    (#namespace, #label_name) => {
       let visitor = #visitor_label{};
 
       #namespaces_matching
