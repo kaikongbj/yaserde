@@ -234,13 +234,13 @@ fn inner_enum_inspector(
             .map(|field| {
               let write_element = |action: &TokenStream| {
                 quote! {
-                  let struct_start_event = ::yaserde::__xml::writer::XmlEvent::start_element(#label_name);
-                  writer.write(struct_start_event).map_err(|e| e.to_string())?;
+                  // let struct_start_event = ::yaserde::__xml::writer::XmlEvent::start_element(#label_name);
+                  // writer.write(struct_start_event).map_err(|e| e.to_string())?;
 
                   #action
 
-                  let struct_end_event = ::yaserde::__xml::writer::XmlEvent::end_element();
-                  writer.write(struct_end_event).map_err(|e| e.to_string())?;
+                  // let struct_end_event = ::yaserde::__xml::writer::XmlEvent::end_element();
+                  // writer.write(struct_end_event).map_err(|e| e.to_string())?;
                 }
               };
 
@@ -257,7 +257,7 @@ fn inner_enum_inspector(
 
               let serialize = quote! {
                 writer.set_start_event_name(::std::option::Option::None);
-                writer.set_skip_start_end(true);
+                writer.set_skip_start_end(false);
                 ::yaserde::YaSerialize::serialize(item, writer)?;
               };
 

@@ -329,7 +329,7 @@ pub fn serialize(
                 #conditions {
                   for item in &self.#label {
                     writer.set_start_event_name(::std::option::Option::Some(#label_name.to_string()));
-                    writer.set_skip_start_end(false);
+                    writer.set_skip_start_end(true);
                     ::yaserde::YaSerialize::serialize(item, writer)?;
                  }
                 }

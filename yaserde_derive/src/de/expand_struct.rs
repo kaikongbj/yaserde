@@ -153,7 +153,7 @@ pub fn parse(
 
       let visit_struct = |struct_name: syn::Path, action: TokenStream| {
         Some(quote! {
-          (#namespace, #label_name) => {
+          (#namespace, _) => {
             if depth == 0 {
               // Don't count current struct's StartElement as substruct's StartElement
               let _root = reader.next_event();
@@ -435,6 +435,7 @@ pub fn parse(
                     #write_unused
 
                     if depth > 0 { // Don't skip root element
+                      ::yaserde::__derive_debug!("Skipping element {:?},namespace {}", name.local_name,namespace);
                       reader.skip_element(|event| {
                         #write_unused
                       })?;
@@ -471,6 +472,9 @@ pub fn parse(
             }
           }
         }
+
+        // assert_eq!(depth,1);
+        assert_eq!(reader.depth(),start_depth + 1);
 
         #visit_unused
 
