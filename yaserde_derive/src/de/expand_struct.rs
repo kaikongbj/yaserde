@@ -153,7 +153,7 @@ pub fn parse(
 
       let visit_struct = |struct_name: syn::Path, action: TokenStream| {
         Some(quote! {
-          (#namespace, _) => {
+          (#namespace, #label_name) => {
             if depth == 0 {
               // Don't count current struct's StartElement as substruct's StartElement
               let _root = reader.next_event();
@@ -161,6 +161,10 @@ pub fn parse(
             if let Ok(::yaserde::__xml::reader::XmlEvent::StartElement { .. }) = reader.peek() {
               // If substruct's start element found then deserialize substruct
               let value = <#struct_name as ::yaserde::YaDeserialize>::deserialize(reader)?;
+                              ::yaserde::__derive_debug!(
+                    "deserialize ok namespace={} local_name={:?}",
+                     namespace.as_str(), name.local_name.as_str(),
+                  );
               #value_label #action;
               // read EndElement
               let _event = reader.next_event()?;
@@ -196,29 +200,6 @@ pub fn parse(
         }
         Field::FieldVec { data_type } => visit_sub(data_type, quote! { .push(value) }),
         simple_type => visit_simple(simple_type, quote! { = ::std::option::Option::Some(value) }),
-      }
-    })
-    .collect();
-
-  let call_flatten_visitors: TokenStream = data_struct
-    .fields
-    .iter()
-    .map(|field| YaSerdeField::new(field.clone()))
-    .filter(|field| !field.is_attribute() && field.is_flatten())
-    .map(|field| {
-      let value_label = field.get_value_label();
-
-      match field.get_type() {
-        Field::FieldStruct { .. } => quote! {
-          #value_label = Some(::yaserde::de::from_str(&unused_xml_elements)?);
-        },
-        Field::FieldOption { data_type } => match *data_type {
-          Field::FieldStruct { .. } => quote! {
-            #value_label = ::yaserde::de::from_str(&unused_xml_elements).ok();
-          },
-          field_type => unimplemented!(r#""flatten" is not implemented for {:?}"#, field_type),
-        },
-        field_type => unimplemented!(r#""flatten" is not implemented for {:?}"#, field_type),
       }
     })
     .collect();
@@ -376,7 +357,92 @@ pub fn parse(
       }
     })
     .collect();
+  let call_flatten_visitors: TokenStream = data_struct
+    .fields
+    .iter()
+    .map(|field| YaSerdeField::new(field.clone()))
+    .filter(|field| !field.is_attribute() && field.is_flatten())
+    .map(|field| {
+      let value_label = field.get_value_label();
+      match field.get_type() {
+        Field::FieldStruct { .. } => quote! {
+          #value_label = Some(::yaserde::de::from_str(&unused_xml_elements)?);
+        },
+        Field::FieldOption { data_type } => match *data_type {
+          Field::FieldStruct { .. } => quote! {
+            #value_label = ::yaserde::de::from_str(&unused_xml_elements).ok();
+          },
+          field_type => unimplemented!(r#""flatten" is not implemented for {:?}"#, field_type),
+        },
+        Field::FieldVec { data_type } => {
+          println!("data_type {:?}", data_type);
+          let type_tokens: TokenStream = (*data_type).into();
+          quote! {
+              println!("FieldVec begin.");
+                   let mut reader1 = ::std::io::Cursor::new(unused_xml_elements);
+              let parser = ::yaserde::__xml::reader::EventReader::new(reader1);
+              let  reader =&mut ::yaserde::de::Deserializer::new(parser);
+                let mut depth=reader.depth();
+            reader.next_event()?;
+          loop {
+            let event = reader.peek()?.to_owned();
+            println!(
+              "Struct {} @ {}: matching {:?}",
+              stringify!(#name), start_depth, event,
+            );
+            match event {
+              ::yaserde::__xml::reader::XmlEvent::StartElement{ref name, ref attributes, ..} => {
+                   println!(
+                    "StartElement {} @ namespace={} local_name={:?}",
+                    stringify!(#name), name.namespace.as_ref().map(|ns| ns.as_str()).unwrap_or_default(), name.local_name.as_str());
+                let namespace = name.namespace.clone().unwrap_or_default();
+                if depth == 0 && name.local_name == #root && namespace.as_str() == #root_namespace {
+                  // Consume root element. We must do this first. In the case it shares a name with a child element, we don't
+                  // want to prematurely match the child element below.
+                     println!("Consume root element..");
+                  let event = reader.next_event()?;
+                } else {
+                    println!(
+                      "Struct {} @ namespace={} local_name={:?}",
+                      stringify!(#name), namespace.as_str(), name.local_name.as_str(),
+                    );
 
+                }
+                let value = <#type_tokens as ::yaserde::YaDeserialize>::deserialize(reader)?;
+                                println!(
+                      "deserialize ok namespace={} local_name={:?} value={:?}",
+                       namespace.as_str(), name.local_name.as_str(),value
+                    );
+                  #value_label.push(value);
+                // read EndElement
+                let _event = reader.next_event()?;
+                depth += 1;
+              }
+              ::yaserde::__xml::reader::XmlEvent::EndElement { ref name } => {
+                      println!("EndElement ");
+                if name.local_name == named_element && reader.depth() == start_depth + 1 {
+                                println!("EndElement break.");
+                  break;
+                }
+                let event = reader.next_event()?;
+                depth -= 1;
+              }
+              ::yaserde::__xml::reader::XmlEvent::EndDocument => {
+                    println!("EndDocument break.");
+                  break;
+              }
+              event => {
+                return ::std::result::Result::Err(::std::format!("unknown event {:?}", event));
+              }
+            }
+          }
+              println!("FieldVec end.");
+                  }
+        }
+        field_type => unimplemented!(r#""flatten" is not implemented for {:?}"#, field_type),
+      }
+    })
+    .collect();
   let (init_unused, write_unused, visit_unused) = if call_flatten_visitors.is_empty() {
     (None, None, None)
   } else {
@@ -414,7 +480,7 @@ pub fn parse(
 
         loop {
           let event = reader.peek()?.to_owned();
-          ::yaserde::__derive_trace!(
+          ::yaserde::__derive_debug!(
             "Struct {} @ {}: matching {:?}",
             stringify!(#name), start_depth, event,
           );
@@ -427,7 +493,10 @@ pub fn parse(
                 let event = reader.next_event()?;
                 #write_unused
               } else {
-
+                  ::yaserde::__derive_debug!(
+                    "Struct {} @ namespace={} local_name={:?}",
+                    stringify!(#name), namespace.as_str(), name.local_name.as_str(),
+                  );
                 match (namespace.as_str(), name.local_name.as_str()) {
                   #call_visitors
                   _ => {
@@ -477,9 +546,9 @@ pub fn parse(
         assert_eq!(reader.depth(),start_depth + 1);
 
         #visit_unused
-
-        ::yaserde::__derive_debug!("Struct {} @ {}: success", stringify!(#name), start_depth);
-        ::std::result::Result::Ok(#name{#struct_builder})
+        let res=#name{#struct_builder};
+        ::yaserde::__derive_debug!("Struct {} @ {} success", stringify!(#name), start_depth );
+        ::std::result::Result::Ok(res)
       }
     }
   }

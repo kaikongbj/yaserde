@@ -314,7 +314,15 @@ impl From<Field> for proc_macro2::TokenStream {
       Field::FieldU64 => quote! { u64 },
       Field::FieldF32 => quote! { f32 },
       Field::FieldF64 => quote! { f64 },
-      _ => panic!("Not a simple type: {:?}", field),
+      Field::FieldVec { data_type } => {
+        let inner_type: TokenStream = (*data_type).into();
+        quote! { Vec<#inner_type> }
+      },
+      Field::FieldStruct { struct_name } => quote! { #struct_name },
+      Field::FieldOption { data_type } => {
+        let inner_type: TokenStream = (*data_type).into();
+        quote! { Option<#inner_type> }
+      },
     }
   }
 }
